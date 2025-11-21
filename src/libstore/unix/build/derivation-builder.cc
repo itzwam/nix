@@ -19,6 +19,7 @@
 #include "nix/store/globals.hh"
 #include "nix/store/build/derivation-env-desugar.hh"
 #include "nix/util/terminal.hh"
+#include "nix/store/filetransfer.hh"
 
 #include <queue>
 
@@ -232,7 +233,7 @@ protected:
      */
     virtual std::unique_ptr<UserLock> getBuildUser()
     {
-        return acquireUserLock(1, false);
+        return acquireUserLock(settings, 1, false);
     }
 
     /**
@@ -437,6 +438,7 @@ private:
 };
 
 void handleDiffHook(
+    const Settings & settings,
     uid_t uid,
     uid_t gid,
     const std::filesystem::path & tryA,
@@ -700,7 +702,7 @@ static void checkNotWorldWritable(std::filesystem::path path)
 
 std::optional<Descriptor> DerivationBuilderImpl::startBuild()
 {
-    if (useBuildUsers()) {
+    if (useBuildUsers(settings)) {
         if (!buildUser)
             buildUser = getBuildUser();
 
@@ -1258,6 +1260,7 @@ void DerivationBuilderImpl::runChild(RunChildArgs args)
            different uid and/or in a sandbox). */
         BuiltinBuilderContext ctx{
             .drv = drv,
+            .hashedMirrors = settings.hashedMirrors,
             .tmpDirInSandbox = tmpDirInSandbox(),
 #if NIX_WITH_AWS_AUTH
             .awsCredentials = args.awsCredentials,
@@ -1266,12 +1269,12 @@ void DerivationBuilderImpl::runChild(RunChildArgs args)
 
         if (drv.isBuiltin() && drv.builder == "builtin:fetchurl") {
             try {
-                ctx.netrcData = readFile(settings.netrcFile);
+                ctx.netrcData = readFile(fileTransferSettings.netrcFile);
             } catch (SystemError &) {
             }
 
             try {
-                ctx.caFileData = readFile(settings.caFile);
+                ctx.caFileData = readFile(fileTransferSettings.caFile);
             } catch (SystemError &) {
             }
         }
@@ -1465,7 +1468,7 @@ SingleDrvOutputs DerivationBuilderImpl::registerOutputs()
            rewriting doesn't contain a hard link to /etc/shadow or
            something like that. */
         canonicalisePathMetaData(
-            actualPath, buildUser ? std::optional(buildUser->getUIDRange()) : std::nullopt, inodesSeen);
+            settings, actualPath, buildUser ? std::optional(buildUser->getUIDRange()) : std::nullopt, inodesSeen);
 
         bool discardReferences = false;
         if (auto udr = get(drvOptions.unsafeDiscardReferences, outputName)) {
@@ -1587,7 +1590,7 @@ SingleDrvOutputs DerivationBuilderImpl::registerOutputs()
 
                 /* FIXME: set proper permissions in restorePath() so
                    we don't have to do another traversal. */
-                canonicalisePathMetaData(actualPath, {}, inodesSeen);
+                canonicalisePathMetaData(settings, actualPath, {}, inodesSeen);
             }
         };
 
@@ -1744,7 +1747,7 @@ SingleDrvOutputs DerivationBuilderImpl::registerOutputs()
 
         /* FIXME: set proper permissions in restorePath() so
             we don't have to do another traversal. */
-        canonicalisePathMetaData(actualPath, {}, inodesSeen);
+        canonicalisePathMetaData(settings, actualPath, {}, inodesSeen);
 
         /* Calculate where we'll move the output files. In the checking case we
            will leave leave them where they are, for now, rather than move to
@@ -1795,6 +1798,7 @@ SingleDrvOutputs DerivationBuilderImpl::registerOutputs()
                         movePath(actualPath, dst);
 
                         handleDiffHook(
+                            settings,
                             buildUser ? buildUser->getUID() : getuid(),
                             buildUser ? buildUser->getGID() : getgid(),
                             finalDestPath,
@@ -1978,6 +1982,8 @@ std::unique_ptr<DerivationBuilder> makeDerivationBuilder(
     LocalStore & store, std::unique_ptr<DerivationBuilderCallbacks> miscMethods, DerivationBuilderParams params)
 {
     bool useSandbox = false;
+
+    auto & settings = store.config->settings;
 
     /* Are we doing a sandboxed build? */
     {
