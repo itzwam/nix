@@ -91,12 +91,12 @@ public:
     /**
      * The directory where we log various operations.
      */
-    Path nixLogDir;
+    std::filesystem::path nixLogDir;
 
     /**
      * The directory where state is stored.
      */
-    Path nixStateDir;
+    std::filesystem::path nixStateDir;
 
     /**
      * The directory where system configuration files are stored.
@@ -106,12 +106,12 @@ public:
     /**
      * A list of user configuration files to load.
      */
-    std::vector<Path> nixUserConfFiles;
+    std::vector<std::filesystem::path> nixUserConfFiles;
 
     /**
      * File name of the socket the daemon listens to.
      */
-    Path nixDaemonSocketFile;
+    std::filesystem::path nixDaemonSocketFile;
 
     Setting<std::string> storeUri{
         this,
@@ -775,7 +775,7 @@ public:
 #endif
 
 #if defined(__linux__) || defined(__FreeBSD__)
-    Setting<Path> sandboxBuildDir{
+    Setting<std::filesystem::path> sandboxBuildDir{
         this,
         "/build",
         "sandbox-build-dir",
@@ -788,7 +788,7 @@ public:
         )"};
 #endif
 
-    Setting<std::optional<Path>> buildDir{
+    Setting<std::optional<std::filesystem::path>> buildDir{
         this,
         std::nullopt,
         "build-dir",
@@ -824,7 +824,7 @@ public:
           line.
         )"};
 
-    OptionalPathSetting diffHook{
+    Setting<std::optional<std::filesystem::path>> diffHook{
         this,
         std::nullopt,
         "diff-hook",
@@ -1168,7 +1168,7 @@ public:
           > `.netrc`.
         )"};
 
-    Setting<Path> caFile{
+    Setting<std::optional<std::filesystem::path>> caFile{
         this,
         getDefaultSSLCertFile(),
         "ssl-cert-file",
@@ -1456,9 +1456,6 @@ extern Settings settings;
  * Usually called with `globalConfig`.
  */
 void loadConfFile(AbstractConfig & config);
-
-// Used by the Settings constructor
-std::vector<Path> getUserConfigFiles();
 
 /**
  * The version of Nix itself.

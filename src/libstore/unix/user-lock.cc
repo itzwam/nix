@@ -93,7 +93,7 @@ struct SimpleUserLock : UserLock
             if (!pw)
                 throw Error("the user '%s' in the group '%s' does not exist", i, settings.buildUsersGroup);
 
-            auto fnUserLock = fmt("%s/userpool/%s", settings.nixStateDir, pw->pw_uid);
+            auto fnUserLock = fmt("%s/userpool/%s", settings.nixStateDir.string(), pw->pw_uid);
 
             AutoCloseFD fd = open(fnUserLock.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0600);
             if (!fd)
@@ -179,7 +179,7 @@ struct AutoUserLock : UserLock
 
             createDirs(settings.nixStateDir + "/userpool2");
 
-            auto fnUserLock = fmt("%s/userpool2/slot-%d", settings.nixStateDir, i);
+            auto fnUserLock = fmt("%s/userpool2/slot-%d", settings.nixStateDir.string(), i);
 
             AutoCloseFD fd = open(fnUserLock.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0600);
             if (!fd)

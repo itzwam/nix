@@ -1052,7 +1052,7 @@ LogFile::LogFile(Store & store, const StorePath & drvPath)
     if (auto localStore = dynamic_cast<LocalStore *>(&store))
         logDir = localStore->config->logDir;
     else
-        logDir = settings.nixLogDir;
+        logDir = settings.nixLogDir.string();
     Path dir = fmt("%s/%s/%s/", logDir, LocalFSStore::drvsLogDir, baseName.substr(0, 2));
     createDirs(dir);
 
