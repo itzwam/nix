@@ -50,10 +50,9 @@ static void createLinks(State & state, const Path & srcDir, const Path & dstDir,
         auto srcFile = (std::filesystem::path{srcDir} / name).string();
         auto dstFile = (std::filesystem::path{dstDir} / name).string();
 
-        struct stat srcSt;
+        PosixStat srcSt;
         try {
-            if (stat(srcFile.c_str(), &srcSt) == -1)
-                throw SysError("getting status of '%1%'", srcFile);
+            srcSt = stat(srcFile);
         } catch (SystemError & e) {
             if (e.is(std::errc::no_such_file_or_directory) || e.is(std::errc::not_a_directory)) {
                 warn("skipping dangling symlink '%s'", dstFile);
